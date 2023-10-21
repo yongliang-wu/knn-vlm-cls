@@ -719,7 +719,7 @@ def main():
                         "stddev": np.nanstd(scores),
                     }
                 )
-    if not os.isdir("results"):
+    if not os.path.isdir("results"):
         os.mkdir("results")
 
     if args.rank == 0 and args.results_file is not None:
