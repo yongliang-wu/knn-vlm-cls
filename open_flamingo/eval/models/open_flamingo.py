@@ -222,12 +222,15 @@ class EvalModel(BaseEvalModel):
                 clear_conditioned_layers=(not use_cache),
                 past_key_values=precomputed_pkvs,
             )
+            
 
             # Get the logits of the classname
             # logits shape is either (B, num_tokens_in_classname, vocab_len) with use_cache
             # or (B, len(_lang_x), vocab_len) without use_cache
             # remember that the logits at index t on dim 1 correspond to predictions for the t+1st token
             logits = outputs.logits
+            print("outputs logits shape", logits.shape)
+            
             if use_cache:
                 logits = torch.cat([precomputed_logits, logits], dim=1)
 
