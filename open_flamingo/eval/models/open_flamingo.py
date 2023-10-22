@@ -117,6 +117,54 @@ class EvalModel(BaseEvalModel):
         )
         return input_ids, attention_mask.bool()
 
+    def get_cls(
+        self,
+        batch_text: List[str],
+        batch_images: List[List[Image.Image]],
+        all_class_names: List[str],
+        min_generation_length: int = 1,
+        max_generation_length: int = 5,
+        num_beams: int = 1,
+        length_penalty: float = 1,
+    ) -> List[str]:
+        """
+        Get generation outputs.
+        """
+        batch_images = self._prepare_images(batch_images)
+        input_ids, attention_mask = self._prepare_text(batch_text)
+
+        with torch.inference_mode():
+            with self.autocast():
+                outputs = unwrap_model(self.model).generate(
+                    batch_images,
+                    input_ids,
+                    attention_mask,
+                    min_new_tokens=min_generation_length,
+                    max_new_tokens=max_generation_length,
+                    num_beams=num_beams,
+                    length_penalty=length_penalty,
+                )
+
+        classnames_tokens = self.tokenizer(
+                all_class_names
+            )["input_ids"]
+
+        overall_probs = []
+        batch_size = outputs.scores[0].shape[0]
+        for classname_tokens in classnames_tokens:
+            classname_tokens_num = len(classname_tokens)
+            prob = torch.ones(batch_size).to(self.device)
+            for i in range(classname_tokens_num):
+                try:
+                    scores = torch.softmax(outputs.scores[i],dim=-1)
+                    prob *= scores[:, classname_tokens[i]]
+                except IndexError as e:
+                    prob = torch.zeros(batch_size).to(self.device)
+            overall_probs.append(prob) # (B, 1)
+
+        overall_probs = torch.vstack(overall_probs).T.cpu()  # shape (B, num_classes)
+        return overall_probs
+    
     def get_outputs(
         self,
         batch_text: List[str],
@@ -143,6 +191,7 @@ class EvalModel(BaseEvalModel):
                     num_beams=num_beams,
                     length_penalty=length_penalty,
                 )
+        
 
         # Extract only the new gnerated tokens
         outputs = outputs[:, len(input_ids[0]) :]
@@ -230,7 +279,7 @@ class EvalModel(BaseEvalModel):
             # remember that the logits at index t on dim 1 correspond to predictions for the t+1st token
             logits = outputs.logits
             print("outputs logits shape", logits.shape)
-            
+
             if use_cache:
                 logits = torch.cat([precomputed_logits, logits], dim=1)
 
@@ -238,6 +287,8 @@ class EvalModel(BaseEvalModel):
             gen_probs = logprobs[
                 :, -num_tokens_in_classname - 1 : -1, :
             ]  # (B, num_tokens_in_classname, vocab_len)
+
+            # 在这里只返回对应的class name 对应的 probs
             gen_probs = torch.gather(
                 gen_probs, 2, classname_tokens[:, :, None]
             ).squeeze(-1)

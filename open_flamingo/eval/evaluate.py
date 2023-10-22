@@ -1237,12 +1237,10 @@ def evaluate_classification(
 
             # get predicted class names
             logprobs.append(
-                eval_model.get_rank_classifications(
+                eval_model.get_cls(
                     batch_text,
                     batch_images,
                     all_class_names,
-                    use_cache=(not no_kv_caching),
-                    normalize_length=True,
                 )
             )
 
