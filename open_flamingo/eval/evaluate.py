@@ -723,7 +723,7 @@ def main():
         os.mkdir("results")
 
     if args.rank == 0 and args.results_file is not None:
-        with open(os.join("results", args.results_file), "w") as f:
+        with open(os.path.join("results", args.results_file), "w") as f:
             json.dump(results, f)
 
 
@@ -1236,11 +1236,21 @@ def evaluate_classification(
                 )
 
             # get predicted class names
+            # logprobs.append(
+            #     eval_model.get_cls(
+            #         batch_text,
+            #         batch_images,
+            #         all_class_names,
+            #     )
+            # )
+
             logprobs.append(
-                eval_model.get_cls(
+                eval_model.get_rank_classifications(
                     batch_text,
                     batch_images,
                     all_class_names,
+                    use_cache=(not no_kv_caching),
+                    normalize_length=True,
                 )
             )
 
@@ -1285,7 +1295,9 @@ def evaluate_classification(
         pred_scores = [
             pred["pred_score"]
             if pred["pred_label"] == greater_label
-            else 1 - pred["pred_score"]
+            else 1 - 
+            
+            ["pred_score"]
             for pred in all_predictions
         ]
         return roc_auc_score(gts, pred_scores)

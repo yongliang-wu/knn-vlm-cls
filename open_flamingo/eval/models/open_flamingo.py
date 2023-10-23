@@ -130,6 +130,7 @@ class EvalModel(BaseEvalModel):
         """
         Get generation outputs.
         """
+        batch_size = len(batch_text)
         batch_images = self._prepare_images(batch_images)
         input_ids, attention_mask = self._prepare_text(batch_text)
 
@@ -150,13 +151,16 @@ class EvalModel(BaseEvalModel):
             )["input_ids"]
 
         overall_probs = []
-        batch_size = outputs.scores[0].shape[0]
+        # batch_size = outputs.scores[0].shape[0]
+        # print(outputs.shape)
         for classname_tokens in classnames_tokens:
             classname_tokens_num = len(classname_tokens)
             prob = torch.ones(batch_size).to(self.device)
             for i in range(classname_tokens_num):
                 try:
-                    scores = torch.softmax(outputs.scores[i],dim=-1)
+                    # print(outputs.logit())
+                    scores = torch.softmax(outputs.logit()[i],dim=-1)
+                    # scores = torch.softmax(outputs.logits[i],dim=-1)
                     prob *= scores[:, classname_tokens[i]]
                 except IndexError as e:
                     prob = torch.zeros(batch_size).to(self.device)
@@ -278,7 +282,7 @@ class EvalModel(BaseEvalModel):
             # or (B, len(_lang_x), vocab_len) without use_cache
             # remember that the logits at index t on dim 1 correspond to predictions for the t+1st token
             logits = outputs.logits
-            print("outputs logits shape", logits.shape)
+            # [1,1,50280]
 
             if use_cache:
                 logits = torch.cat([precomputed_logits, logits], dim=1)
